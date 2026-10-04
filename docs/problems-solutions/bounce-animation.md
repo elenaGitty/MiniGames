@@ -24,7 +24,7 @@ when the ball became supported and stopped moving.
 - Treat low-speed contact at the frame floor as rest instead of bouncing again.
 - Keep impact squash for stronger, actual impacts.
 
-The shared curve lives in `src/Physics.tsx`; wave collision and rest detection
+The shared curve lives in `src/physics/core.ts`; wave collision and rest detection
 remain specific to the wave-and-ball interaction.
 
 ## Recorded examples

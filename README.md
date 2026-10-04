@@ -73,8 +73,9 @@ npm run lint
 
 ## Reusable physics helpers
 
-`src/Physics.tsx` contains the shared physics settings and helpers. Import the
-settings and only the helpers an interaction needs:
+Shared physics helpers and interaction-specific models now live together in
+the lowercase `src/physics/` folder. Import reusable helpers from
+`src/physics/core.ts`:
 
 ```ts
 import {
@@ -84,7 +85,7 @@ import {
   PHYSICS,
   resolveSurfaceImpact,
   stepSpring,
-} from './Physics';
+} from './physics/core';
 ```
 
 - **`PHYSICS`** centralizes gravity, restitution, rolling behavior, and speed
@@ -106,12 +107,12 @@ Use seconds for `deltaSeconds` and keep mutable motion state in a ref or local
 simulation object when it is updated on every animation frame. That avoids
 triggering a React render for every physics step.
 
-The wave-specific model is separate in `src/physics/wave.ts`. It owns the wave
-state, pointer-driven motion, surface sampling, and SVG path generation. Keep
-generic motion helpers in `Physics.tsx`; put interaction-specific behavior in
-its own model or component.
+The wave-specific model in `src/physics/wave.ts` owns wave state,
+pointer-driven motion, surface sampling, and SVG path generation. This keeps
+generic physics helpers separate from the wave model without splitting them
+across similarly named files and folders.
 
-The bounce squash curve is shared from `Physics.tsx`; collision detection,
+The bounce squash curve is shared from `src/physics/core.ts`; collision detection,
 contact normals, and settling thresholds remain specific to each interaction.
 See [the bounce animation root-cause notes](docs/problems-solutions/bounce-animation.md).
 
@@ -119,20 +120,25 @@ See [the bounce animation root-cause notes](docs/problems-solutions/bounce-anima
 
 ```text
 src/
-  App.tsx                         Root page composition
-  Physics.tsx                     Shared physics constants and helpers
-  physics/wave.ts                 Wave state, sampling, and path generation
+  App.tsx
+  main.tsx
+  physics/
+    core.ts                       Shared physics constants and helpers
+    wave.ts                       Wave state, sampling, and path generation
+  styles/
+    global.scss                   Theme, reset, and page-level layout
+    _brush-strokes.scss           Shared SVG stroke defaults
   components/
-    BrushPath/                    Layered SVG brush-stroke paths
-    DropBallButton/               Reusable ball-drop control
+    BrushPath/                    Layered SVG path primitive
+    DropBallButton/               Ball-drop control and styles
     SvgLineText/                  Text positioned along an SVG line
-    wigglyLine/                   Wave, ball, cursor, and off-screen indicator
-  index.scss                      Palette and global brush-stroke styles
+    HandDrawnText/                Hand-drawn text and styles
+    wigglyLine/                   Wave, ball, cursor, and component styles
 docs/images/
-  interactive-wave.png             Screenshot used above
+  interactive-wave.png            Screenshot used above
   wave-ball-module.png             Current Wave + Ball module
-docs/problems-solutions/           See the learning curve
-  bounce-animation.md               Bounce animation root-cause notes and GIFs
+docs/problems-solutions/
+  bounce-animation.md              Root-cause notes and recorded GIFs
 ```
 
 The root currently displays the wave prototype. As the site grows, `App.tsx`

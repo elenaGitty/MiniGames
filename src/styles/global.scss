@@ -1,3 +1,5 @@
+@use './brush-strokes';
+
 :root {
   --palette-olive: #292B1D;
   --palette-olive-light: #79853C;
@@ -33,24 +35,4 @@ body {
 .app {
   width: 100%;
   height: 100%;
-}
-
-svg :is(path, circle, ellipse, line, polyline, polygon, rect) {
-  stroke: var(--outline-color);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.brush-outline--soft {
-  stroke-width: 3.6;
-  opacity: 0.08;
-}
-
-.brush-outline--main {
-  stroke-width: 1.9;
-}
-
-.brush-outline--bristle {
-  stroke-width: 0.55;
-  opacity: 0.18;
 }

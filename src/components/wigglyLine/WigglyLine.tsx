@@ -7,7 +7,7 @@ import {
   IMPACT_SQUASH_DURATION,
   PHYSICS,
   resolveSurfaceImpact,
-} from '../../Physics';
+} from '../../physics/core';
 import {
   createWaveMotionState,
   createWavePath,
