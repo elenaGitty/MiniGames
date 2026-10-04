@@ -18,9 +18,14 @@ when the ball became supported and stopped moving.
 
 ## Solution
 
+- Move the bounce squash timing and strength curve into shared physics helpers
+  so other interactions can reuse the same effect.
 - Clear the impact pose when the ball is resting on the wave.
 - Treat low-speed contact at the frame floor as rest instead of bouncing again.
 - Keep impact squash for stronger, actual impacts.
+
+The shared curve lives in `src/Physics.tsx`; wave collision and rest detection
+remain specific to the wave-and-ball interaction.
 
 ## Recorded examples
 

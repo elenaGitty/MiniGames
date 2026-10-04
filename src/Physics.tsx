@@ -12,6 +12,38 @@ export const PHYSICS = {
   floorRestitution: 0.48,
 } as const;
 
+const IMPACT_SQUASH_POSES = [
+  { time: 0, squash: 0 },
+  { time: 0.07, squash: 0.28 },
+  { time: 0.12, squash: 0.24 },
+  { time: 0.22, squash: -0.08 },
+  { time: 0.3, squash: 0 },
+] as const;
+
+export const IMPACT_SQUASH_DURATION = IMPACT_SQUASH_POSES[
+  IMPACT_SQUASH_POSES.length - 1
+].time;
+
+export const getImpactSquash = (ageSeconds: number, impactSpeed: number) => {
+  if (ageSeconds <= 0 || ageSeconds >= IMPACT_SQUASH_DURATION) return 0;
+
+  let pose = 0;
+  for (let index = 1; index < IMPACT_SQUASH_POSES.length; index += 1) {
+    const nextPose = IMPACT_SQUASH_POSES[index];
+    if (ageSeconds > nextPose.time) continue;
+
+    const previousPose = IMPACT_SQUASH_POSES[index - 1];
+    const progress = (ageSeconds - previousPose.time) / (nextPose.time - previousPose.time);
+    const easedProgress = progress * progress * (3 - 2 * progress);
+    pose = previousPose.squash
+      + (nextPose.squash - previousPose.squash) * easedProgress;
+    break;
+  }
+
+  const strength = Math.max(0.2, Math.min(1.35, impactSpeed / 500));
+  return pose * strength;
+};
+
 export type PhysicsMotion = {
   x: number;
   y: number;

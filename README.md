@@ -44,6 +44,16 @@ off-screen. The wave and ball are currently composed in the
 There is no separate physics or animation package; the prototype uses small
 local helpers so their behavior can be reused and tuned.
 
+## Designing and building with AI
+
+I won't lie—I did build this with AI. 
+
+But the ideas and care behind this project are entirely mine. I’m excited by the possibilities of in-screen SVG animation: using maths to make simple shapes feel responsive and alive, while aiming for a thoughtful, enjoyable user experience. I pay close attention to how each interaction feels, then guide and refine it until the motion matches that intent.
+
+My limitation before was my lack of knowledge in physics and its application. With AI, I’ve been able to explore my need for a nice, smooth UX through animation and in-browser SVG manipulation (finally learnt about sine waves on a Saturday afternoon). A welcome break from my Enterprise applications (tbh I love those too).
+
+Building with AI isn't easy—it's chonky, it doesn't understand motion, and it requires my many years of art knowledge to pull up obscure words for animation language. And even then, it still tries to tell me "bounce doesn't work like that :D". Using Playwright makes things easier, allowing the LLM to see the failures and screenshots directly in VS Code. In the end, a well-rounded vocabulary and plenty of patience help bring it all together.
+
 ## Getting started
 
 Install dependencies and start the Vite development server:
@@ -68,6 +78,8 @@ settings and only the helpers an interaction needs:
 
 ```ts
 import {
+  getImpactSquash,
+  IMPACT_SQUASH_DURATION,
   integrateMotion,
   PHYSICS,
   resolveSurfaceImpact,
@@ -76,13 +88,17 @@ import {
 ```
 
 - **`PHYSICS`** centralizes gravity, restitution, rolling behavior, and speed
-  limits. Tune these values before adding one-off constants to a component.
+  limits. Use these shared defaults where they fit; keep interaction-specific
+  thresholds with the component that owns that behavior.
 - **`integrateMotion(motion, deltaSeconds, acceleration?)`** advances a
   position and velocity using elapsed seconds. Supply a custom acceleration
   for motion that is not in free fall.
 - **`resolveSurfaceImpact(motion, options)`** resolves velocity against a
   surface normal. Optional surface velocity, masses, and restitution let a
   moving or differently weighted surface be represented.
+- **`getImpactSquash(ageSeconds, impactSpeed)`** returns the shared squash
+  amount for a bounce, scaled by impact strength. Pair it with
+  **`IMPACT_SQUASH_DURATION`** to stop the effect when it finishes.
 - **`stepSpring(value, velocity, deltaSeconds, stiffness, damping)`** advances
   a simple damped spring, useful for soft UI motion.
 
@@ -94,6 +110,10 @@ The wave-specific model is separate in `src/physics/wave.ts`. It owns the wave
 state, pointer-driven motion, surface sampling, and SVG path generation. Keep
 generic motion helpers in `Physics.tsx`; put interaction-specific behavior in
 its own model or component.
+
+The bounce squash curve is shared from `Physics.tsx`; collision detection,
+contact normals, and settling thresholds remain specific to each interaction.
+See [the bounce animation root-cause notes](docs/problems-solutions/bounce-animation.md).
 
 ## Project structure
 

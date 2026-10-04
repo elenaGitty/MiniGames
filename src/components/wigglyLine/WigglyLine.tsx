@@ -3,6 +3,8 @@ import './WigglyLine.scss';
 import BrushPath from '../BrushPath/BrushPath';
 import WaveBall, { createWaveBallPath } from './WaveBall';
 import {
+  getImpactSquash,
+  IMPACT_SQUASH_DURATION,
   PHYSICS,
   resolveSurfaceImpact,
 } from '../../Physics';
@@ -24,9 +26,6 @@ const BALL_RADIUS = 9;
 const BALL_SCREEN_RADIUS = 17;
 const BALL_WAVE_CLEARANCE = 3.5;
 const BALL_FRAME_CLEARANCE = 3;
-const BALL_SQUASH_REFERENCE_IMPACT_SPEED = 500;
-const BALL_MIN_IMPACT_SQUASH = 0.2;
-const BALL_MAX_IMPACT_SQUASH = 1.35;
 const INITIAL_WAVE_PATH = createWavePath(createWaveMotionState());
 const BALL_MAX_HEIGHT_ABOVE_FRAME = 10;
 const BALL_DROP_SPEED = 160;
@@ -40,14 +39,6 @@ const BALL_RESTITUTION_REFERENCE_SPEED = 850;
 const BALL_RESTITUTION_CURVE = 1.1;
 const BALL_LANDING_SURFACE_MASS = PHYSICS.mass * 1000;
 const BALL_IMPACT_ANIMATION_COOLDOWN = 0.36;
-const BALL_IMPACT_POSES = [
-  { time: 0, squash: 0 },
-  { time: 0.07, squash: 0.28 },
-  { time: 0.12, squash: 0.24 },
-  { time: 0.22, squash: -0.08 },
-  { time: 0.3, squash: 0 },
-];
-const BALL_IMPACT_ANIMATION_DURATION = BALL_IMPACT_POSES[BALL_IMPACT_POSES.length - 1].time;
 const FRAME_BOUNDS = { left: 20, right: 990, top: 25, bottom: 575 };
 const CURSOR_STROKE_LAYERS = ['soft', 'main', 'bristle'] as const;
 const POINTER_CURSOR_PATH = 'M 4 2 L 4 29 L 11 22 L 16 35 Q 17 37 19 36 Q 21 35 20 33 L 16 22 L 26 22 Z';
@@ -133,7 +124,7 @@ const WigglyLine: React.FC = () => {
     let ballAirBlur = 0;
     let ballSquash = 0;
     let ballImpactPoseAge = -1;
-    let ballImpactStrength = 1;
+    let ballImpactSpeed = 0;
     let ballImpactNormalX = 0;
     let ballImpactNormalY = -1;
     let previousPointer: { x: number; y: number; time: number } | null = null;
@@ -152,28 +143,10 @@ const WigglyLine: React.FC = () => {
 
       ball.impactAnimationCooldown = BALL_IMPACT_ANIMATION_COOLDOWN;
       ballImpactPoseAge = 0;
-      ballImpactStrength = Math.max(
-        BALL_MIN_IMPACT_SQUASH,
-        Math.min(BALL_MAX_IMPACT_SQUASH, impactSpeed / BALL_SQUASH_REFERENCE_IMPACT_SPEED),
-      );
+      ballImpactSpeed = impactSpeed;
       const normalLength = Math.hypot(normalX, normalY) || 1;
       ballImpactNormalX = normalX / normalLength;
       ballImpactNormalY = normalY / normalLength;
-    };
-
-    const getImpactPose = (age: number) => {
-      for (let index = 1; index < BALL_IMPACT_POSES.length; index += 1) {
-        const nextPose = BALL_IMPACT_POSES[index];
-        if (age > nextPose.time) continue;
-
-        const previousPose = BALL_IMPACT_POSES[index - 1];
-        const progress = (age - previousPose.time) / (nextPose.time - previousPose.time);
-        const easedProgress = progress * progress * (3 - 2 * progress);
-        return previousPose.squash
-          + (nextPose.squash - previousPose.squash) * easedProgress;
-      }
-
-      return 0;
     };
 
     const animate = (time: number) => {
@@ -211,8 +184,8 @@ const WigglyLine: React.FC = () => {
         const wasOnWave = ball.onWave;
         if (ballImpactPoseAge >= 0) {
           ballImpactPoseAge += seconds;
-          if (ballImpactPoseAge < BALL_IMPACT_ANIMATION_DURATION) {
-            ballSquash = getImpactPose(ballImpactPoseAge) * ballImpactStrength;
+          if (ballImpactPoseAge < IMPACT_SQUASH_DURATION) {
+            ballSquash = getImpactSquash(ballImpactPoseAge, ballImpactSpeed);
           } else {
             ballSquash = 0;
             ballImpactPoseAge = -1;
