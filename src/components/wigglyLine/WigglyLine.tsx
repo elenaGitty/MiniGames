@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import './WigglyLine.scss';
-import DropBallButton from '../DropBallButton/DropBallButton';
 import BrushPath from '../BrushPath/BrushPath';
 import WaveBall, { createWaveBallPath } from './WaveBall';
 import OffscreenArrow from './OffscreenArrow';
@@ -552,7 +551,6 @@ const WigglyLine: React.FC = () => {
           />
         </g>
       </svg>
-      <DropBallButton onDrop={() => dropBall(0.5)} />
       <svg
         ref={lineCursorRef}
         className="line-cursor"
