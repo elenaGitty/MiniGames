@@ -110,7 +110,9 @@ src/
   index.scss                      Palette and global brush-stroke styles
 docs/images/
   interactive-wave.png             Screenshot used above
-  wave-ball-module.png              Current Wave + Ball module
+  wave-ball-module.png             Current Wave + Ball module
+docs/problems-solutions/           See the learning curve
+  bounce-animation.md               Bounce animation root-cause notes and GIFs
 ```
 
 The root currently displays the wave prototype. As the site grows, `App.tsx`
