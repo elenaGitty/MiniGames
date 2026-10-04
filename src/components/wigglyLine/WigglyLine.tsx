@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import './WigglyLine.scss';
 import BrushPath from '../BrushPath/BrushPath';
 import WaveBall, { createWaveBallPath } from './WaveBall';
-import OffscreenArrow from './OffscreenArrow';
 import {
   PHYSICS,
   resolveSurfaceImpact,
@@ -22,51 +21,49 @@ import {
 const VIEWBOX_WIDTH = WAVE_VIEWBOX_WIDTH;
 const VIEWBOX_HEIGHT = WAVE_VIEWBOX_HEIGHT;
 const BALL_RADIUS = 11;
-const ARROW_EXIT_DURATION = 160;
+const BALL_PATH = createWaveBallPath(BALL_RADIUS);
+const INITIAL_WAVE_PATH = createWavePath(createWaveMotionState());
+const BALL_MAX_HEIGHT_ABOVE_FRAME = 10;
+const BALL_DROP_SPEED = 160;
 const CURSOR_LINE_HIT_RADIUS = 20;
+const WAVE_LAUNCH_SPEED = 35;
+const BALL_UPWARD_SPEED_LIMIT = 240;
+const BALL_WAVE_CLEARANCE = 4;
+const BALL_MAX_LANDING_RESTITUTION = 0.62;
+const BALL_MIN_LANDING_RESTITUTION = 0.22;
+const BALL_SETTLE_SPEED = 24;
+const BALL_RESTITUTION_REFERENCE_SPEED = 850;
+const BALL_RESTITUTION_CURVE = 1.1;
+const BALL_LANDING_SURFACE_MASS = PHYSICS.mass * 1000;
+const BALL_IMPACT_ANIMATION_COOLDOWN = 0.36;
+const BALL_IMPACT_POSES = [
+  { time: 0, squash: 0 },
+  { time: 0.07, squash: 0.28 },
+  { time: 0.12, squash: 0.24 },
+  { time: 0.22, squash: -0.08 },
+  { time: 0.3, squash: 0 },
+];
+const BALL_IMPACT_ANIMATION_DURATION = BALL_IMPACT_POSES[BALL_IMPACT_POSES.length - 1].time;
+const FRAME_BOUNDS = { left: 20, right: 990, top: 25, bottom: 575 };
 const CURSOR_STROKE_LAYERS = ['soft', 'main', 'bristle'] as const;
 const POINTER_CURSOR_PATH = 'M 4 2 L 4 29 L 11 22 L 16 35 Q 17 37 19 36 Q 21 35 20 33 L 16 22 L 26 22 Z';
 const HAND_CURSOR_PATH = 'M 11 36 Q 8 33 7 29 L 5 23 Q 4 21 6 20 Q 8 19 9 22 L 11 27 L 11 10 Q 11 7 14 7 Q 17 7 17 10 L 17 21 L 18 16 Q 19 13 22 14 Q 24 15 23 18 L 22 22 Q 24 19 26 21 Q 28 23 26 26 L 24 33 Q 23 37 19 38 Z';
 const CLICK_MARKS_PATH = 'M 4 9 L 1 6 M 9 5 L 9 1 M 2 13 L -1 13';
-const FRAME_BOUNDS = { left: 20, right: 990, top: 25, bottom: 575 };
-const ARROW_INSET = 18;
-const DISTANCE_DIGIT_PATHS: Record<string, string> = {
-  '0': 'M 5.3 0.7 C 2.7 0.4 1.1 2.7 1.2 6.4 C 0.9 10.3 2.4 13.4 5 13.1 C 7.8 13.2 9 10.5 8.8 6.9 C 8.9 3.4 7.6 0.9 5.3 0.7 Z',
-  '1': 'M 2 3 C 3.5 2.7 4.7 1.2 5.5 0.6 L 5.2 13.1 M 2.6 13.2 C 4.4 13.1 6.8 13.3 8.2 13',
-  '2': 'M 1.1 3.4 C 1.4 1.2 3.2 0.5 5.4 0.7 C 7.8 0.7 8.9 2.3 8.7 4.1 C 8.7 5.7 6.8 7 5.4 8.2 C 3.8 9.6 2.3 11.3 1 12.7 C 3.5 12.5 6.7 12.9 9.1 12.4',
-  '3': 'M 1.5 1.7 C 3 0.7 5.5 0.5 7.2 1.5 C 9 2.6 8.3 4.8 6.8 5.8 L 4.4 6.5 C 6.2 6.1 8.5 7 8.7 9.3 C 9.1 12 6.7 13.4 4.5 13.1 C 2.8 13.2 1.4 12.5 0.9 11.5',
-  '4': 'M 6.7 13.4 C 6.9 9.5 6.8 4.8 7 0.8 C 5.1 3.2 2.4 6.7 1 8.5 C 3.7 8.3 6.8 8.6 9.1 8.4',
-  '5': 'M 8.6 1.1 C 6.6 1.2 4.1 0.9 2 1 C 1.8 2.7 1.7 4.5 1.5 5.9 C 2.8 5 4.4 4.8 6 5.3 C 8.1 5.8 9 7.6 8.8 9.7 C 8.5 12.2 6.8 13.4 4.5 13.2 C 2.9 13 1.5 12.5 0.9 11.4',
-  '6': 'M 7.8 1.3 C 6.3 0.5 4.8 0.8 3.6 2 C 1.6 4 1 7 1.3 9.7 C 1.6 12.3 3.1 13.5 5.3 13.2 C 7.6 13.1 8.7 11.4 8.5 9.1 C 8.4 6.8 6.8 5.7 5 5.8 C 3.4 5.8 2.1 6.8 1.4 8.2',
-  '7': 'M 1 1.2 C 3.4 1 6.3 1.4 8.9 1.1 C 6.6 5 4.5 9.5 3.1 13.4',
-  '8': 'M 5 0.8 C 2.8 0.5 1.4 1.8 1.5 3.6 C 1.5 5.3 3.1 6.2 5.2 6.7 C 7.4 7.2 8.9 8.3 8.8 10.2 C 8.7 12.3 7 13.3 4.8 13.2 C 2.4 13 1.1 11.8 1.2 9.9 C 1.3 8.2 2.8 7.2 5.1 6.7 C 7.1 6.1 8.5 5.2 8.3 3.4 C 8.1 1.7 7 0.8 5 0.8 Z',
-  '9': 'M 7.7 6.6 C 6.7 7.6 5.2 7.8 3.8 7.5 C 1.7 7 1 5.6 1.2 3.6 C 1.3 1.7 2.9 0.5 5 0.8 C 7.3 0.8 8.5 2.7 8.4 5.4 C 8.5 9.2 7.1 12.5 3.2 13.3',
-};
-const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
-const drawDistanceLabel = (group: SVGGElement, value: string) => {
-  const characterWidth = 10;
-  const characterGap = 2;
-  const totalWidth = value.length * (characterWidth + characterGap) - characterGap;
-  group.replaceChildren();
+const getEllipseSupportRadius = (
+  tangentRadius: number,
+  normalRadius: number,
+  axisX: number,
+  axisY: number,
+  directionX: number,
+  directionY: number,
+) => {
+  const projection = axisX * directionX + axisY * directionY;
+  const radiusSquared = tangentRadius * tangentRadius
+    + (normalRadius * normalRadius - tangentRadius * tangentRadius)
+      * projection * projection;
 
-  value.split('').forEach((digit, index) => {
-    const digitGroup = document.createElementNS(SVG_NAMESPACE, 'g');
-    digitGroup.setAttribute(
-      'transform',
-      `translate(${-totalWidth / 2 + index * (characterWidth + characterGap)} 0)`,
-    );
-    const pathData = DISTANCE_DIGIT_PATHS[digit];
-    if (!pathData) return;
-
-    ['soft', 'main', 'bristle'].forEach((layer) => {
-      const path = document.createElementNS(SVG_NAMESPACE, 'path');
-      path.setAttribute('d', pathData);
-      path.setAttribute('class', `brush-outline--${layer}`);
-      digitGroup.append(path);
-    });
-    group.append(digitGroup);
-  });
+  return Math.sqrt(Math.max(0, radiusSquared));
 };
 
 const WigglyLine: React.FC = () => {
@@ -75,9 +72,9 @@ const WigglyLine: React.FC = () => {
   const lineCursorRef = useRef<SVGSVGElement>(null);
   const lineRefs = useRef<Array<SVGPathElement | null>>([]);
   const ballRef = useRef<SVGGElement>(null);
-  const ballOutlineRefs = useRef<Array<SVGPathElement | null>>([]);
-  const offscreenArrowRef = useRef<SVGGElement>(null);
-  const offscreenDistanceRef = useRef<SVGGElement>(null);
+  const ballSpinRef = useRef<SVGGElement>(null);
+  const ballAspectRef = useRef<SVGGElement>(null);
+  const ballAirBlurRef = useRef<SVGFEGaussianBlurElement>(null);
   const ballState = useRef({
     x: 0,
     y: 0,
@@ -86,9 +83,10 @@ const WigglyLine: React.FC = () => {
     active: false,
     onWave: false,
     impactReady: true,
+    impactAnimationCooldown: 0,
   });
   const ballRotation = useRef(0);
-  const initialPath = createWavePath(createWaveMotionState());
+  const ballSpinVelocity = useRef(0);
   const dropBall = useCallback((progress: number) => {
     const ball = ballState.current;
     ball.x = WAVE_START_X + progress * (WAVE_END_X - WAVE_START_X);
@@ -96,13 +94,15 @@ const WigglyLine: React.FC = () => {
       WAVE_START_X + BALL_RADIUS,
       Math.min(WAVE_END_X - BALL_RADIUS, ball.x),
     );
-    ball.y = -BALL_RADIUS * 2;
+    ball.y = FRAME_BOUNDS.top - BALL_RADIUS - BALL_MAX_HEIGHT_ABOVE_FRAME;
     ball.velocityX = 0;
-    ball.velocityY = 0;
+    ball.velocityY = BALL_DROP_SPEED;
     ball.onWave = false;
     ball.impactReady = true;
+    ball.impactAnimationCooldown = 0;
     ball.active = true;
     ballRotation.current = 0;
+    ballSpinVelocity.current = 0;
     ballRef.current?.setAttribute('visibility', 'visible');
   }, []);
 
@@ -113,16 +113,40 @@ const WigglyLine: React.FC = () => {
     const wavePathSamples = new Float64Array(WAVE_POINT_COUNT);
     let ballVerticalRadius = BALL_RADIUS;
     let ballAspectScale = 1;
+    let ballAirBlur = 0;
     let ballSquash = 0;
-    let ballSquashTarget = 0;
-    let fallShapeMix = 0;
-    let fallShapeRecovery = 0;
+    let ballImpactPoseAge = -1;
+    let ballImpactNormalX = 0;
+    let ballImpactNormalY = -1;
     let previousPointer: { x: number; y: number; time: number } | null = null;
-    let arrowIsShown = false;
-    let arrowExitElapsed = 0;
-    let previousDistanceLabel = '';
     let frameId = 0;
     let previousFrameTime = 0;
+
+    const startImpactAnimation = (normalX: number, normalY: number) => {
+      const ball = ballState.current;
+      if (ball.impactAnimationCooldown > 0) return;
+
+      ball.impactAnimationCooldown = BALL_IMPACT_ANIMATION_COOLDOWN;
+      ballImpactPoseAge = 0;
+      const normalLength = Math.hypot(normalX, normalY) || 1;
+      ballImpactNormalX = normalX / normalLength;
+      ballImpactNormalY = normalY / normalLength;
+    };
+
+    const getImpactPose = (age: number) => {
+      for (let index = 1; index < BALL_IMPACT_POSES.length; index += 1) {
+        const nextPose = BALL_IMPACT_POSES[index];
+        if (age > nextPose.time) continue;
+
+        const previousPose = BALL_IMPACT_POSES[index - 1];
+        const progress = (age - previousPose.time) / (nextPose.time - previousPose.time);
+        const easedProgress = progress * progress * (3 - 2 * progress);
+        return previousPose.squash
+          + (nextPose.squash - previousPose.squash) * easedProgress;
+      }
+
+      return 0;
+    };
 
     const animate = (time: number) => {
       const deltaTime = previousFrameTime === 0 ? 0 : Math.min(time - previousFrameTime, 32);
@@ -154,38 +178,36 @@ const WigglyLine: React.FC = () => {
 
       if (ball.active && ballRef.current) {
         const seconds = deltaTime / 1000;
+        ball.impactAnimationCooldown = Math.max(0, ball.impactAnimationCooldown - seconds);
         const previousBallX = ball.x;
-        ballSquashTarget *= Math.exp(-seconds / 0.09);
-        const squashTime = ballSquashTarget > ballSquash ? 0.04 : 0.18;
-        ballSquash += (ballSquashTarget - ballSquash) * (1 - Math.exp(-seconds / squashTime));
-        const previousProgress = Math.max(
-          0,
-          Math.min(1, (ball.x - WAVE_START_X) / (WAVE_END_X - WAVE_START_X)),
-        );
-        const previousSurfaceY = getWaveY(previousProgress, previousWave);
-        const currentSurfaceAtPreviousX = getWaveY(previousProgress, wave);
-        const surfaceVelocity = seconds === 0
-          ? 0
-          : (currentSurfaceAtPreviousX - previousSurfaceY) / seconds;
+        const wasOnWave = ball.onWave;
+        if (ballImpactPoseAge >= 0) {
+          ballImpactPoseAge += seconds;
+          if (ballImpactPoseAge < BALL_IMPACT_ANIMATION_DURATION) {
+            ballSquash = getImpactPose(ballImpactPoseAge);
+          } else {
+            ballSquash = 0;
+            ballImpactPoseAge = -1;
+          }
+        }
+        const impactScaleY = 1 - ballSquash;
+        const impactScaleX = 1 / Math.sqrt(impactScaleY);
 
-        if (!ball.onWave) {
+        ball.x += ball.velocityX * seconds;
+        if (ball.onWave) {
+          ball.y += ball.velocityY * seconds;
+        } else {
+          ball.y += ball.velocityY * seconds
+            + 0.5 * PHYSICS.gravity * seconds * seconds;
           ball.velocityY += PHYSICS.gravity * seconds;
         }
-        ball.x += ball.velocityX * seconds;
-        ball.y += ball.velocityY * seconds;
-        fallShapeRecovery = Math.max(0, fallShapeRecovery - seconds);
-        const targetFallShapeMix = ball.onWave
-          || fallShapeRecovery > 0
-          ? 0
-          : Math.min(Math.max(ball.velocityY, 0) / 180, 1);
-        fallShapeMix += (targetFallShapeMix - fallShapeMix)
-          * (1 - Math.exp(-deltaTime / 150));
-        let shapeVerticalRadius = ballVerticalRadius * (1 + fallShapeMix * 0.3);
-
         const progress = Math.max(
           0,
           Math.min(1, (ball.x - WAVE_START_X) / (WAVE_END_X - WAVE_START_X)),
         );
+        const surfaceVelocity = seconds === 0
+          ? 0
+          : (getWaveY(progress, wave) - getWaveY(progress, previousWave)) / seconds;
         const surfaceY = getWaveY(progress, wave);
         const leftProgress = Math.max(
           0,
@@ -201,28 +223,63 @@ const WigglyLine: React.FC = () => {
         const normalLength = Math.hypot(contactSlope, 1);
         const overWave = ball.x >= WAVE_START_X && ball.x <= WAVE_END_X;
 
-        const surfaceClearance = shapeVerticalRadius * normalLength + 1.5;
+        const shapeRadius = Math.max(BALL_RADIUS, ballVerticalRadius);
+        const tangentRadius = shapeRadius * impactScaleX;
+        const normalRadius = shapeRadius * impactScaleY;
+        const waveNormalX = contactSlope / normalLength;
+        const waveNormalY = -1 / normalLength;
+        const waveSupportRadius = getEllipseSupportRadius(
+          tangentRadius,
+          normalRadius,
+          ballImpactNormalX,
+          ballImpactNormalY,
+          waveNormalX,
+          waveNormalY,
+        );
+        const surfaceClearance = waveSupportRadius * normalLength + BALL_WAVE_CLEARANCE;
         const penetratesWave = ball.y + surfaceClearance >= surfaceY;
+        const relativeNormalVelocity = (
+          ball.velocityX * contactSlope - ball.velocityY + surfaceVelocity
+        ) / normalLength;
+        const movingIntoWave = relativeNormalVelocity < 0;
 
         if (!penetratesWave && !ball.onWave) {
           ball.impactReady = true;
         }
 
-        if (overWave && (penetratesWave || ball.onWave)) {
-          fallShapeRecovery = 0.3;
+        if (
+          overWave
+          && (
+            ball.onWave
+            || (penetratesWave && movingIntoWave && ball.impactReady)
+          )
+        ) {
           ball.y = surfaceY - surfaceClearance;
 
           if (ball.onWave) {
             ball.velocityY = surfaceVelocity + contactSlope * ball.velocityX;
+            if (ball.velocityY < -WAVE_LAUNCH_SPEED) {
+              ball.velocityY = Math.max(ball.velocityY, -BALL_UPWARD_SPEED_LIMIT);
+              ball.onWave = false;
+            }
           } else {
+            const impactSpeed = Math.max(0, -relativeNormalVelocity);
+            const impactEnergy = Math.min(impactSpeed / BALL_RESTITUTION_REFERENCE_SPEED, 1);
+            const landingRestitution = Math.min(
+              BALL_MAX_LANDING_RESTITUTION,
+              BALL_MIN_LANDING_RESTITUTION
+                + (BALL_MAX_LANDING_RESTITUTION - BALL_MIN_LANDING_RESTITUTION)
+                  * impactEnergy ** BALL_RESTITUTION_CURVE,
+            );
             const impact = resolveSurfaceImpact(ball, {
               normalX: contactSlope,
               normalY: -1,
               surfaceVelocityY: surfaceVelocity,
+              surfaceMass: BALL_LANDING_SURFACE_MASS,
+              restitution: landingRestitution,
             });
 
-            if (ball.impactReady && impact.relativeNormalVelocity < -12) {
-              const impactSpeed = impact.impactSpeed;
+            if (ball.impactReady && impact.relativeNormalVelocity < -BALL_SETTLE_SPEED) {
               const horizontalVelocityChange = Math.max(
                 -PHYSICS.impactSideImpulseLimit,
                 Math.min(
@@ -231,19 +288,17 @@ const WigglyLine: React.FC = () => {
                 ),
               );
               ball.velocityX += horizontalVelocityChange;
-              ball.velocityY = impact.velocityY;
-              ball.onWave = false;
-              ball.impactReady = false;
-              ballSquashTarget = Math.max(
-                ballSquashTarget,
-                Math.min(0.2, 0.06 + impactSpeed / 1800),
+              ball.velocityY = Math.max(
+                impact.velocityY,
+                -BALL_UPWARD_SPEED_LIMIT,
               );
-              wave.impactRipple = {
-                center: progress,
-                age: 0,
-                strength: Math.min(0.5 + impactSpeed * 0.004, 1.2),
-              };
-            } else if (Math.abs(impact.relativeNormalVelocity) < 10) {
+              ball.onWave = false;
+              ball.impactReady = true;
+              startImpactAnimation(contactSlope, -1);
+            } else if (
+              impact.relativeNormalVelocity < 0
+              && impact.relativeNormalVelocity > -BALL_SETTLE_SPEED
+            ) {
               ball.onWave = true;
               ball.velocityY = surfaceVelocity + contactSlope * ball.velocityX;
             } else {
@@ -252,6 +307,14 @@ const WigglyLine: React.FC = () => {
           }
         } else if (ball.onWave) {
           ball.onWave = false;
+        }
+
+        if (ball.velocityY < 0) {
+          const maximumApexY = FRAME_BOUNDS.top - ballVerticalRadius
+            - BALL_MAX_HEIGHT_ABOVE_FRAME;
+          const availableRise = Math.max(ball.y - maximumApexY, 0);
+          const maximumUpwardSpeed = Math.sqrt(2 * PHYSICS.gravity * availableRise);
+          ball.velocityY = Math.max(ball.velocityY, -maximumUpwardSpeed);
         }
 
         if (overWave && ball.onWave) {
@@ -272,154 +335,87 @@ const WigglyLine: React.FC = () => {
 
         const leftWall = FRAME_BOUNDS.left + BALL_RADIUS;
         const rightWall = FRAME_BOUNDS.right - BALL_RADIUS;
-        const floor = FRAME_BOUNDS.bottom - shapeVerticalRadius;
+        const verticalSupportRadius = getEllipseSupportRadius(
+          tangentRadius,
+          normalRadius,
+          ballImpactNormalX,
+          ballImpactNormalY,
+          0,
+          1,
+        );
+        const floor = FRAME_BOUNDS.bottom - verticalSupportRadius;
 
         if (ball.x < leftWall) {
           ball.x = leftWall;
           if (ball.velocityX < 0) {
             ball.velocityX = -ball.velocityX * PHYSICS.wallRestitution;
+            ball.onWave = false;
+            ball.impactReady = true;
+            startImpactAnimation(1, 0);
           }
         } else if (ball.x > rightWall) {
           ball.x = rightWall;
           if (ball.velocityX > 0) {
             ball.velocityX = -ball.velocityX * PHYSICS.wallRestitution;
+            ball.onWave = false;
+            ball.impactReady = true;
+            startImpactAnimation(-1, 0);
           }
         }
 
         if (ball.y > floor) {
-          fallShapeRecovery = 0.3;
           ball.y = floor;
           if (ball.velocityY > 0) {
             ball.velocityY = -ball.velocityY * PHYSICS.floorRestitution;
+            startImpactAnimation(0, -1);
           }
           ball.onWave = false;
-        }
-
-        if (fallShapeRecovery > 0 || ball.onWave || ball.velocityY <= 0) {
-          fallShapeMix += (0 - fallShapeMix) * (1 - Math.exp(-deltaTime / 100));
-          shapeVerticalRadius = ballVerticalRadius * (1 + fallShapeMix * 0.3);
         }
 
         ball.velocityX = Math.max(
           -PHYSICS.rollingSpeedLimit,
           Math.min(PHYSICS.rollingSpeedLimit, ball.velocityX),
         );
-        ballRotation.current += ((ball.x - previousBallX) / BALL_RADIUS) * (180 / Math.PI);
-        const impactScaleY = Math.max(0.8, 1 - ballSquash);
-        const impactScaleX = 1 / Math.sqrt(impactScaleY);
-        const fallStretch = 1 + fallShapeMix * 0.3;
-        const ballPath = createWaveBallPath(BALL_RADIUS);
-        for (let index = 0; index < ballOutlineRefs.current.length; index += 1) {
-          ballOutlineRefs.current[index]?.setAttribute('d', ballPath);
+        const targetAirBlur = ball.onWave ? 0 : 1;
+        ballAirBlur += (targetAirBlur - ballAirBlur) * (1 - Math.exp(-deltaTime / 90));
+        const blurAmount = ballAirBlur * Math.min(
+          0.7,
+          0.15 + Math.hypot(ball.velocityX, ball.velocityY) / 900 * 0.55,
+        );
+        ballAirBlurRef.current?.setAttribute('stdDeviation', `${blurAmount.toFixed(2)}`);
+        if (wasOnWave) {
+          const horizontalDistance = ball.x - previousBallX;
+          ballSpinVelocity.current = seconds > 0
+            ? horizontalDistance / BALL_RADIUS / seconds
+            : ball.velocityX / BALL_RADIUS;
+          ballRotation.current += (horizontalDistance / BALL_RADIUS) * (180 / Math.PI);
+        } else {
+          ballRotation.current += ballSpinVelocity.current * seconds * (180 / Math.PI);
         }
-        const anchoredY = ball.y + shapeVerticalRadius * (1 - impactScaleY);
+        const impactScaleTangent = impactScaleX;
+        const impactNormalScale = impactScaleY;
+        const scaleDifference = impactNormalScale - impactScaleTangent;
+        const transformScaleX = impactScaleTangent
+          + scaleDifference * ballImpactNormalX * ballImpactNormalX;
+        const transformSkew = scaleDifference * ballImpactNormalX * ballImpactNormalY;
+        const transformScaleY = impactScaleTangent
+          + scaleDifference * ballImpactNormalY * ballImpactNormalY;
+        const anchoredX = ball.x
+          - ballImpactNormalX * shapeRadius * (1 - impactNormalScale);
+        const anchoredY = ball.y
+          - ballImpactNormalY * shapeRadius * (1 - impactNormalScale);
         const rotation = ballRotation.current * (Math.PI / 180);
         const cosine = Math.cos(rotation);
         const sine = Math.sin(rotation);
         ballRef.current.setAttribute(
           'transform',
-          `translate(${ball.x} ${anchoredY}) matrix(${cosine * impactScaleX} ${fallStretch * sine * impactScaleX * ballAspectScale} ${-sine * impactScaleY / ballAspectScale} ${fallStretch * cosine * impactScaleY} 0 0)`,
+          `translate(${anchoredX} ${anchoredY}) matrix(${transformScaleX} ${transformSkew} ${transformSkew} ${transformScaleY} 0 0)`,
+        );
+        ballSpinRef.current?.setAttribute(
+          'transform',
+          `matrix(${cosine} ${sine * ballAspectScale} ${-sine / ballAspectScale} ${cosine} 0 0)`,
         );
 
-        const isOffscreen = ball.x < BALL_RADIUS
-          || ball.x > VIEWBOX_WIDTH - BALL_RADIUS
-          || ball.y < ballVerticalRadius
-          || ball.y > VIEWBOX_HEIGHT - shapeVerticalRadius;
-        if (offscreenArrowRef.current) {
-          if (isOffscreen) {
-            const centerX = VIEWBOX_WIDTH / 2;
-            const centerY = VIEWBOX_HEIGHT / 2;
-            const directionX = ball.x - centerX;
-            const directionY = ball.y - centerY;
-            const horizontalScale = directionX === 0
-              ? Number.POSITIVE_INFINITY
-              : (directionX > 0
-                ? FRAME_BOUNDS.right - ARROW_INSET - centerX
-                : centerX - FRAME_BOUNDS.left - ARROW_INSET) / Math.abs(directionX);
-            const verticalScale = directionY === 0
-              ? Number.POSITIVE_INFINITY
-              : (directionY > 0
-                ? FRAME_BOUNDS.bottom - ARROW_INSET - centerY
-                : centerY - FRAME_BOUNDS.top - ARROW_INSET) / Math.abs(directionY);
-            const scale = Math.min(horizontalScale, verticalScale);
-            const arrowX = centerX + directionX * scale;
-            const arrowY = centerY + directionY * scale;
-            const svgBounds = svgRef.current?.getBoundingClientRect();
-            const scaleX = svgBounds ? VIEWBOX_WIDTH / svgBounds.width : 1;
-            const scaleY = svgBounds ? VIEWBOX_HEIGHT / svgBounds.height : 1;
-            const angle = Math.atan2(directionY / scaleY, directionX / scaleX) * (180 / Math.PI);
-
-            offscreenArrowRef.current.setAttribute(
-              'transform',
-              `translate(${arrowX} ${arrowY}) scale(${scaleX} ${scaleY}) rotate(${angle})`,
-            );
-            const leftDistance = Math.max(BALL_RADIUS - ball.x, 0);
-            const rightDistance = Math.max(ball.x - (VIEWBOX_WIDTH - BALL_RADIUS), 0);
-            const topDistance = Math.max(ballVerticalRadius - ball.y, 0);
-            const bottomDistance = Math.max(
-              ball.y - (VIEWBOX_HEIGHT - ballVerticalRadius),
-              0,
-            );
-            const distanceInPixels = Math.hypot(
-              (leftDistance || rightDistance) * (svgBounds?.width ?? 1) / VIEWBOX_WIDTH,
-              (topDistance || bottomDistance) * (svgBounds?.height ?? 1) / VIEWBOX_HEIGHT,
-            );
-            if (offscreenDistanceRef.current) {
-              offscreenDistanceRef.current.setAttribute(
-                'transform',
-                `translate(${arrowX} ${arrowY}) scale(${scaleX} ${scaleY}) translate(0 27)`,
-              );
-              const label = offscreenDistanceRef.current.firstElementChild;
-              const labelText = `${Math.round(distanceInPixels / 10)}`;
-              if (label instanceof SVGGElement && labelText !== previousDistanceLabel) {
-                drawDistanceLabel(label, labelText);
-                previousDistanceLabel = labelText;
-              }
-              offscreenDistanceRef.current.setAttribute('visibility', 'visible');
-            }
-            if (!arrowIsShown) {
-              arrowIsShown = true;
-              arrowExitElapsed = 0;
-              offscreenArrowRef.current.setAttribute('visibility', 'visible');
-              offscreenArrowRef.current.classList.remove('offscreen-arrow--exit');
-              offscreenArrowRef.current.classList.remove('offscreen-arrow--enter');
-              void offscreenArrowRef.current.getBoundingClientRect();
-              offscreenArrowRef.current.classList.add('offscreen-arrow--enter');
-            }
-          } else {
-            if (arrowIsShown) {
-              arrowIsShown = false;
-              arrowExitElapsed = 0;
-              offscreenArrowRef.current.classList.remove('offscreen-arrow--enter');
-              offscreenArrowRef.current.classList.remove('offscreen-arrow--exit');
-              void offscreenArrowRef.current.getBoundingClientRect();
-              offscreenArrowRef.current.classList.add('offscreen-arrow--exit');
-            }
-            if (arrowExitElapsed >= ARROW_EXIT_DURATION) {
-              offscreenArrowRef.current.setAttribute('visibility', 'hidden');
-              offscreenArrowRef.current.classList.remove('offscreen-arrow--exit');
-              offscreenDistanceRef.current?.setAttribute('visibility', 'hidden');
-            } else if (!arrowIsShown) {
-              arrowExitElapsed += deltaTime;
-            }
-          }
-        }
-      } else {
-        if (arrowIsShown && offscreenArrowRef.current) {
-          arrowIsShown = false;
-          arrowExitElapsed = 0;
-          offscreenArrowRef.current.classList.remove('offscreen-arrow--enter');
-          offscreenArrowRef.current.classList.remove('offscreen-arrow--exit');
-          void offscreenArrowRef.current.getBoundingClientRect();
-          offscreenArrowRef.current.classList.add('offscreen-arrow--exit');
-        }
-        if (offscreenArrowRef.current && arrowExitElapsed >= ARROW_EXIT_DURATION) {
-          offscreenArrowRef.current.setAttribute('visibility', 'hidden');
-          offscreenArrowRef.current.classList.remove('offscreen-arrow--exit');
-          offscreenDistanceRef.current?.setAttribute('visibility', 'hidden');
-        } else if (!arrowIsShown) {
-          arrowExitElapsed += deltaTime;
-        }
       }
 
       frameId = window.requestAnimationFrame(animate);
@@ -427,15 +423,12 @@ const WigglyLine: React.FC = () => {
 
     const updateBallAspectRatio = () => {
       const bounds = svgRef.current?.getBoundingClientRect();
-      const outlines = ballRef.current?.children;
-      if (!bounds || bounds.width === 0 || bounds.height === 0 || !outlines) return;
+      if (!bounds || bounds.width === 0 || bounds.height === 0) return;
 
       const verticalScale = (bounds.width * VIEWBOX_HEIGHT) / (bounds.height * VIEWBOX_WIDTH);
       ballAspectScale = verticalScale;
       ballVerticalRadius = BALL_RADIUS * verticalScale;
-      Array.from(outlines).forEach((outline) => {
-        outline.setAttribute('transform', `scale(1 ${verticalScale})`);
-      });
+      ballAspectRef.current?.setAttribute('transform', `scale(1 ${verticalScale})`);
     };
 
     const handlePointerMove = (event: PointerEvent) => {
@@ -471,10 +464,10 @@ const WigglyLine: React.FC = () => {
         const elapsed = Math.max(event.timeStamp - previousPointer.time, 1);
         const deltaX = x - previousPointer.x;
         const speed = Math.hypot(deltaX, y - previousPointer.y) / bounds.width / elapsed;
-        wave.targetEnergy = Math.max(wave.targetEnergy, Math.min(speed * 110, 0.3));
+        wave.targetEnergy = Math.max(wave.targetEnergy, Math.min(speed * 180, 0.65));
 
-        const force = Math.max(-0.08, Math.min(0.08, (deltaX / bounds.width) * 1.4));
-        wave.pendingForce = Math.max(-0.12, Math.min(0.12, wave.pendingForce + force));
+        const force = Math.max(-0.14, Math.min(0.14, (deltaX / bounds.width) * 2.2));
+        wave.pendingForce = Math.max(-0.2, Math.min(0.2, wave.pendingForce + force));
       }
 
       previousPointer = { x, y, time: event.timeStamp };
@@ -537,17 +530,15 @@ const WigglyLine: React.FC = () => {
           />
           <WaveBall
             ballRef={ballRef}
-            outlineRefs={ballOutlineRefs.current}
-            radius={BALL_RADIUS}
+            spinRef={ballSpinRef}
+            aspectRef={ballAspectRef}
+            blurRef={ballAirBlurRef}
+            path={BALL_PATH}
           />
           <BrushPath
             className="wiggly-path"
-            d={initialPath}
+            d={INITIAL_WAVE_PATH}
             pathRefs={lineRefs}
-          />
-          <OffscreenArrow
-            arrowRef={offscreenArrowRef}
-            distanceRef={offscreenDistanceRef}
           />
         </g>
       </svg>

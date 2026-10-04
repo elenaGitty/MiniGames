@@ -125,100 +125,13 @@
   pointer-events: none;
 }
 
-.wave-ball__outline {
-  fill: none;
+.wave-ball__fill {
+  fill: var(--global-background-color);
+  stroke: none;
   pointer-events: none;
 }
 
-.offscreen-arrow__shape {
+.wave-ball__outline {
   fill: none;
-}
-
-.offscreen-distance__glyphs {
-  fill: none;
-  stroke: var(--outline-color);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.offscreen-distance__glyphs .brush-outline--soft {
-  stroke-width: 3;
-  opacity: 0.08;
-}
-
-.offscreen-distance__glyphs .brush-outline--main {
-  stroke-width: 1.35;
-}
-
-.offscreen-distance__glyphs .brush-outline--bristle {
-  stroke-width: 0.45;
-  opacity: 0.14;
-}
-
-.offscreen-arrow {
-  color: var(--outline-color);
-}
-
-.offscreen-arrow .brush-outline--soft {
-  stroke-width: 4.4;
-}
-
-.offscreen-arrow .brush-outline--main {
-  stroke-width: 2.5;
-}
-
-.offscreen-arrow .brush-outline--bristle {
-  stroke-width: 0.7;
-}
-
-.offscreen-arrow__motion {
-  transform-box: fill-box;
-  transform-origin: center;
-}
-
-.offscreen-arrow--enter .offscreen-arrow__motion {
-  animation: offscreen-arrow-pop-in 260ms cubic-bezier(0.18, 0.9, 0.24, 1) both;
-}
-
-.offscreen-arrow--exit .offscreen-arrow__motion {
-  animation: offscreen-arrow-pop-out 160ms cubic-bezier(0.4, 0, 0.8, 0.2) both;
-}
-
-@keyframes offscreen-arrow-pop-in {
-  0% {
-    scale: 0.35;
-    translate: -12px 0;
-  }
-
-  55% {
-    scale: 1.22;
-    translate: 0 0;
-  }
-
-  76% {
-    scale: 0.94;
-  }
-
-  100% {
-    scale: 1;
-  }
-}
-
-@keyframes offscreen-arrow-pop-out {
-  from {
-    scale: 1;
-    translate: 0 0;
-  }
-
-  to {
-    scale: 0.3;
-    translate: -12px 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .offscreen-arrow--enter .offscreen-arrow__motion,
-  .offscreen-arrow--exit .offscreen-arrow__motion {
-    animation: none;
-  }
+  pointer-events: none;
 }

@@ -7,8 +7,11 @@ export const WAVE_POINT_COUNT = 101;
 const WAVE_END_LIFT = 18;
 const WAVE_RIGHT_END_RELIEF = 8;
 const WAVE_MOMENTUM_DAMPING = 1.8;
-const WAVE_MOMENTUM_LIMIT = 0.75;
+const WAVE_MOMENTUM_LIMIT = 0.95;
 const WAVE_BOUNDARY_RESTITUTION = 0.35;
+const IMPACT_DIP_SCALE = 0.9;
+const IMPACT_DIP_WIDTH = 0.012;
+const IMPACT_DIP_RISE_TIME = 0.2;
 const WAVE_SAMPLE_PROGRESS = new Float64Array(WAVE_POINT_COUNT);
 const WAVE_SAMPLE_X = new Float64Array(WAVE_POINT_COUNT);
 const WAVE_SAMPLE_EDGE = new Float64Array(WAVE_POINT_COUNT);
@@ -99,7 +102,7 @@ export const stepWaveMotion = (state: WaveMotionState, deltaTime: number) => {
 
 export const getWaveY = (progress: number, state: WaveMotionState) => {
   const amplitude = 15 + (1 - state.pointerX) * 25;
-  const packetAmplitude = state.energy * (32 + (1 - state.pointerX) * 24);
+  const packetAmplitude = state.energy * (52 + (1 - state.pointerX) * 36);
   const edgeEnvelope = Math.pow(Math.sin(Math.PI * progress), 0.6);
   const idleWave = Math.sin(progress * Math.PI * 4.5) * Math.sin(state.phase) * amplitude;
   const distance = progress - state.center;
@@ -108,11 +111,13 @@ export const getWaveY = (progress: number, state: WaveMotionState) => {
     * packetEnvelope
     * packetAmplitude;
   const rippleDistance = Math.abs(progress - (state.impactRipple?.center ?? 0));
+  const dipAge = (state.impactRipple?.age ?? 0) / IMPACT_DIP_RISE_TIME;
+  const dipTimeEnvelope = dipAge * Math.exp(1 - dipAge);
   const impactDip = state.impactRipple
-    ? -state.impactRipple.strength
-      * 0.35
-      * Math.exp(-(rippleDistance * rippleDistance) / 0.002)
-      * Math.exp(-state.impactRipple.age * 5)
+    ? state.impactRipple.strength
+      * IMPACT_DIP_SCALE
+      * Math.exp(-(rippleDistance * rippleDistance) / IMPACT_DIP_WIDTH)
+      * dipTimeEnvelope
     : 0;
   const rippleFront = state.impactRipple
     ? rippleDistance - state.impactRipple.age * 0.18
@@ -139,15 +144,16 @@ export const createWavePath = (
   samples = new Float64Array(WAVE_POINT_COUNT),
 ) => {
   const amplitude = 15 + (1 - state.pointerX) * 25;
-  const packetAmplitude = state.energy * (32 + (1 - state.pointerX) * 24);
+  const packetAmplitude = state.energy * (52 + (1 - state.pointerX) * 36);
   const phaseSine = Math.sin(state.phase);
   const waveHeight = WAVE_VIEWBOX_HEIGHT / 2;
   const hasRipple = state.impactRipple !== null;
   const rippleCenter = state.impactRipple?.center ?? 0;
   const rippleStrength = state.impactRipple?.strength ?? 0;
   const rippleAge = state.impactRipple?.age ?? 0;
-  const impactDecay = hasRipple ? Math.exp(-rippleAge * 5) : 0;
   const rippleDecay = hasRipple ? Math.exp(-rippleAge * 3) : 0;
+  const dipAge = rippleAge / IMPACT_DIP_RISE_TIME;
+  const dipTimeEnvelope = hasRipple ? dipAge * Math.exp(1 - dipAge) : 0;
   const ripplePhase = rippleAge * 8;
   const rippleTravel = rippleAge * 0.18;
 
@@ -163,10 +169,12 @@ export const createWavePath = (
 
     if (hasRipple) {
       const rippleDistance = Math.abs(progress - rippleCenter);
-      const dipEnvelope = Math.exp(-(rippleDistance * rippleDistance) / 0.002);
+      const dipEnvelope = Math.exp(
+        -(rippleDistance * rippleDistance) / IMPACT_DIP_WIDTH,
+      );
       const rippleFront = rippleDistance - rippleTravel;
 
-      impactDip = -rippleStrength * 0.35 * dipEnvelope * impactDecay;
+      impactDip = rippleStrength * IMPACT_DIP_SCALE * dipEnvelope * dipTimeEnvelope;
       outwardRipple = Math.sin(rippleDistance * 72 - ripplePhase)
         * Math.exp(-(rippleFront * rippleFront) / 0.014)
         * rippleStrength
