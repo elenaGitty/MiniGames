@@ -1,0 +1,53 @@
+.drop-ball-button {
+  position: absolute;
+  z-index: 1;
+  top: 7%;
+  right: 6%;
+  display: grid;
+  width: 64px;
+  height: 52px;
+  padding: 2px;
+  place-items: center;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 14px;
+  cursor: pointer;
+  appearance: none;
+  transition: color 140ms ease-out;
+}
+
+.drop-ball-button:hover,
+.drop-ball-button:focus-visible {
+  color: var(--palette-ochre);
+}
+
+.drop-ball-button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+.drop-ball-button__icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.drop-ball-button__stroke {
+  fill: none;
+}
+
+.drop-ball-button__stroke--soft {
+  stroke-width: 3.6;
+  opacity: 0.08;
+}
+
+.drop-ball-button__stroke--main {
+  stroke-width: 1.9;
+}
+
+.drop-ball-button__stroke--bristle {
+  stroke-width: 0.55;
+  opacity: 0.18;
+}

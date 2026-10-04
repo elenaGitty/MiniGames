@@ -1,0 +1,12 @@
+:root {
+  --global-background-color: #F3ECCF;
+}
+
+body {
+  background-color: var(--global-background-color);
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
