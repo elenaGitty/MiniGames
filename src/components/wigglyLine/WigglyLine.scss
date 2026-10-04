@@ -106,15 +106,23 @@
 .frame-path,
 .wiggly-path {
   fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.frame-path.brush-outline--soft,
+.wiggly-path.brush-outline--soft,
+.wave-ball__outline.brush-outline--soft {
+  stroke-width: 5.4px;
+}
+
+.frame-path.brush-outline--main,
+.wiggly-path.brush-outline--main,
+.wave-ball__outline.brush-outline--main {
+  stroke-width: 3px;
 }
 
 .frame-path--soft {
-  stroke-width: 4;
   opacity: 0.08;
-}
-
-.frame-path--main {
-  stroke-width: 1.8;
 }
 
 .wiggly-path {
@@ -134,4 +142,5 @@
 .wave-ball__outline {
   fill: none;
   pointer-events: none;
+  vector-effect: non-scaling-stroke;
 }

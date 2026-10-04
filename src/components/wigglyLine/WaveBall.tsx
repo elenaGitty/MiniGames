@@ -7,7 +7,9 @@ type WaveBallProps = {
   spinRef: Ref<SVGGElement>;
   aspectRef: Ref<SVGGElement>;
   blurRef: Ref<SVGFEGaussianBlurElement>;
-  path: string;
+  fillRef: Ref<SVGPathElement>;
+  outlineRefs: Array<SVGPathElement | null>;
+  radius: number;
 };
 
 export const createWaveBallPath = (radius: number) => {
@@ -45,34 +47,43 @@ const WaveBall = ({
   spinRef,
   aspectRef,
   blurRef,
-  path,
-}: WaveBallProps) => (
-  <>
-    <defs>
-      <filter id="wave-ball-air-blur" x="-100%" y="-100%" width="300%" height="300%">
-        <feGaussianBlur ref={blurRef} stdDeviation="0" />
-      </filter>
-    </defs>
-    <g
-      ref={ballRef}
-      className="wave-ball"
-      filter="url(#wave-ball-air-blur)"
-      visibility="hidden"
-    >
-      <g ref={spinRef}>
-        <g ref={aspectRef}>
-          <path className="wave-ball__fill" d={path} />
-          {OUTLINE_LAYERS.map((layer) => (
-            <path
-              key={layer}
-              className={`wave-ball__outline brush-outline--${layer}`}
-              d={path}
-            />
-          ))}
+  fillRef,
+  outlineRefs,
+  radius,
+}: WaveBallProps) => {
+  const path = createWaveBallPath(radius);
+
+  return (
+    <>
+      <defs>
+        <filter id="wave-ball-air-blur" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur ref={blurRef} stdDeviation="0" />
+        </filter>
+      </defs>
+      <g
+        ref={ballRef}
+        className="wave-ball"
+        filter="url(#wave-ball-air-blur)"
+        visibility="hidden"
+      >
+        <g ref={spinRef}>
+          <g ref={aspectRef}>
+            <path ref={fillRef} className="wave-ball__fill" d={path} />
+            {OUTLINE_LAYERS.map((layer, index) => (
+              <path
+                key={layer}
+                ref={(element) => {
+                  outlineRefs[index] = element;
+                }}
+                className={`wave-ball__outline brush-outline--${layer}`}
+                d={path}
+              />
+            ))}
+          </g>
         </g>
       </g>
-    </g>
-  </>
-);
+    </>
+  );
+};
 
 export default WaveBall;
